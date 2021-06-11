@@ -1,0 +1,4 @@
+deps
+obj
+*.elf
+faust/*.hpp

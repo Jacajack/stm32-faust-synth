@@ -1,0 +1,65 @@
+// For making control params exponential
+// pow here is rewritten as exp and log, because log has constant argument value
+// In the second version the final output comes directly from exp so it's easier to determine if fast_exp arguments are valid
+// lin2exp( mi, ma, x ) = mi * exp( x * log( ma / mi ) );
+lin2exp( mi, ma, x ) = exp( log( ma ) * x + log( mi ) * ( 1 - x ) );
+  
+// Custom MIDI key to Hz implementation avoiding powf(x,y) call
+mid2hz( k ) = 440.0 * exp( ( k - 69 ) * log( pow( 2, 1 / 12 ) ) ); 
+
+// PolyBLEP residual
+polyblep( Q, phase ) = ( 0, L( phase / Q ), R( ( phase - 1 ) / Q ) ) : select3( sel ) 
+with
+{
+	sel = ( phase < Q ) + 2*( phase > 1 - Q );
+	L(x) = x*(2 - x) - 1; // Used near the left end of the interval
+	R(x) = x*(2 + x) + 1; // Used near the right end of the interval
+};
+
+// PolyBLEP saw
+polyblep_saw( f ) = naive - polyblep( Q , phase )
+with
+{
+	phase = os.phasor( 1, f );
+	naive = 2 * phase - 1;
+	Q = f / ma.SR;
+};
+
+// PolyBLEP square
+polyblep_square( f ) = naive - polyblep( Q, phase ) + polyblep( Q, phase + 0.5 - ( phase + 0.5 : int ) )
+with
+{
+	phase = os.phasor( 1, f );
+	naive = 2 * ( phase * 2 : int ) - 1;
+	Q = f / ma.SR;
+};
+
+// PolyBLEP triangle (square through a leaky integrator)
+polyblep_triangle( f ) = polyblep_square( f ) : fi.pole( 0.999 ) : *(4 * f / ma.SR);
+
+// All PolyBLEP oscillators combined into one (shared phasor) - probably more eficcient
+polyblep_multiosc( f ) = saw, square, triangle
+with
+{
+	phase = os.phasor( 1, f );	
+	Q = f / ma.SR;
+	blep1 = polyblep( Q, phase + 0.5 - ( phase + 0.5 : int ) );
+	blep2 = polyblep( Q, phase );
+	saw = 2 * phase - 1 - blep2;
+	square = 2 * ( phase * 2 : int ) - 1 - blep2 + blep1 ;
+	triangle = square : fi.pole( 0.999 ) : *(4 * Q);
+};
+
+// PM operator
+pm_operator( gate, f, phase, mod ) = sin( phase + os.hs_phasor( 2 * ma.PI, f, gate : ba.impulsify ) + mod );
+
+// Asymmetric deadzone of size t above 0
+positive_deadzone(t, x) = 0, (x - t) / (1 - t) : select2(x >= t);
+
+// Symmetric deadzone (size +/-t) cenetered around 0
+// f(-1) = -1
+// f(1)  =  1
+deadzone(t, x) = 0, ((t-x) / (t-1)), (-1 * (t+x) / (t-1)) : select3((x > t) + 2 * (x < -t));
+
+// Clamp signal so it's between bot and top
+clamp(bot, top) = max(bot) : min(top);
