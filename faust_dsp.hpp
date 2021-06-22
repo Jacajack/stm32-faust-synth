@@ -173,8 +173,8 @@ public:
 	virtual void metadata( Meta* m ) = 0;
 	virtual int getNumInputs( ) = 0;
 	virtual int getNumOutputs( ) = 0;
-	virtual int getInputRate( int channel ) = 0;
-	virtual int getOutputRate( int channel ) = 0;
+	virtual int getInputRate( int channel ) {return getSampleRate();}
+	virtual int getOutputRate( int channel ) {return getSampleRate();}
 	virtual void instanceConstants( int samplingFreq ) = 0;
 	virtual void instanceResetUserInterface( ) = 0;
 	virtual void instanceClear( ) = 0;
