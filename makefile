@@ -1,4 +1,5 @@
-TOOLCHAIN_PREIFX = arm-none-eabi-
+TOOLCHAIN_DIR = /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
+TOOLCHAIN_PREIFX = $(TOOLCHAIN_DIR)/arm-none-eabi-
 CC = $(TOOLCHAIN_PREIFX)gcc
 CXX = $(TOOLCHAIN_PREIFX)g++
 LD = $(TOOLCHAIN_PREIFX)ld
