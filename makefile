@@ -52,8 +52,10 @@ SRC = \
 	synth.cpp\
 	audio.cpp \
 	analog.cpp \
-	aic23b.c \
+	aic23b.cpp \
 	midi.cpp
+
+FAUST_FILES = $(wildcard faust/*.faust) $(wildcard faust/*.dsp)
 
 endif
 
@@ -131,6 +133,8 @@ DEFS = \
 SRC = \
 	$(wildcard harp/*.c ) 
 
+FAUST_FILES = faust/sine.dsp
+
 endif
 
 # Libraries
@@ -173,7 +177,6 @@ SYS_OBJECTS := $(patsubst %.cpp, $(OBJDIR)/%.o, $(SYS_SRC))
 SYS_OBJECTS := $(patsubst %.c, $(OBJDIR)/%.o, $(SYS_OBJECTS))
 SYS_OBJECTS := $(patsubst %.s, $(OBJDIR)/%.o, $(SYS_OBJECTS))
 
-FAUST_FILES = $(wildcard faust/*.faust) $(wildcard faust/*.dsp)
 FAUST_HEADERS := $(patsubst %.faust, %.hpp, $(FAUST_FILES))
 FAUST_HEADERS := $(patsubst %.dsp, %.hpp, $(FAUST_HEADERS))
 
