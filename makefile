@@ -1,3 +1,8 @@
+# supporting multiple STM32 boards
+# STM32F405RGT (original) = HWORIG
+# STM32F469I-DISCO (dev) = HWDISCO
+# STM32F469ZIT6 (harp) = HWHARP
+
 TOOLCHAIN_DIR = /opt/arm-gnu-toolchain-12.3.rel1-x86_64-arm-none-eabi/bin
 TOOLCHAIN_PREIFX = $(TOOLCHAIN_DIR)/arm-none-eabi-
 CC = $(TOOLCHAIN_PREIFX)gcc
@@ -6,6 +11,7 @@ LD = $(TOOLCHAIN_PREIFX)ld
 SIZE = $(TOOLCHAIN_PREIFX)size
 
 # Faust DSP class
+# will change later
 DSP_CLASS_NAME = panel
 
 # Output elf file
@@ -14,8 +20,11 @@ ELF = synth.elf
 # CPU type related flags
 CPU_FLAGS = -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mthumb -mfloat-abi=hard -mlittle-endian
 
+# ORIGINAL SYNTH !
+ifdef HWORIG
 # Linker script
 LDSCRIPT = ./cubemx/STM32F405RGTx_FLASH.ld
+
 
 # Include directories
 INC = \
@@ -25,35 +34,120 @@ INC = \
 	-Icubemx/Drivers/CMSIS/Device/ST/STM32F4xx/Include \
 	-Icubemx/Drivers/STM32F4xx_HAL_Driver/Inc \
 	-Icubemx/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy
-
-# Libraries
-LIBS = -lc -lm -lnosys 
-
-# Actual project sources
-SRC = \
-	synth.cpp \
-	audio.cpp \
-	analog.cpp \
-	aic23b.c \
-	midi.cpp
-
+	
 # Driver sources + Cube code
 SYS_SRC = \
 	cubemx/startup_stm32f405xx.s \
 	$(wildcard cubemx/Drivers/STM32F4xx_HAL_Driver/Src/*.c ) \
 	$(wildcard cubemx/Src/*.c )
-	
+
 # Defines
 DEFS = \
 	-DUSE_HAL_DRIVER \
 	-DSTM32F405xx \
 	-DDSP_CLASS_NAME=$(DSP_CLASS_NAME)
+
+# Actual project sources
+SRC = \
+	synth.cpp\
+	audio.cpp \
+	analog.cpp \
+	aic23b.c \
+	midi.cpp
+
+endif
+
+# DISCOVERY BOARD BSP
+ifdef HWDISCO
+# Linker script
+STMTOOLS = /opt/st/stm32cubeide_1.13.2/plugins/com.st.stm32cube.ide.mcu.externaltoools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.1.202309131626/tools
+LDSCRIPT = BSP/SW4STM32/STM32469I_DISCO/STM32F469NIHx_FLASH.ld
+
+# Include directories
+INC = \
+	-I. \
+	-IBSP/Inc \
+	-IBSP/Drivers/CMSIS/Include \
+	-IBSP/Drivers/CMSIS/Device/ST/STM32F4xx/Include \
+	-IBSP/Drivers/STM32F4xx_HAL_Driver/Inc \
+	-IBSP/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy \
+	-IBSP/Utilities/Log \
+	-IBSP/Utilities/Fonts \
+	-IBSP/Drivers/BSP/Components/Common \
+	-IBSP/Drivers/BSP/STM32469I-Discovery \
+	-IBSP/Middlewares/ST/STM32_Audio/Addons/PDM/Inc \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1 \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1/arm-none-eabi/thumb/nofp \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1/backward
+
 	
+# Driver sources + Cube code
+SYS_SRC = \
+	BSP/SW4STM32/startup_stm32f469xx.s \
+	BSP/SW4STM32/syscalls.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma2d.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dsi.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2s_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_ltdc.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_ltdc_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_qspi.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sai.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sai_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sd.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_sdram.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_fmc.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_sdmmc.c \
+	$(wildcard BSP/Drivers/BSP/STM32469I-Discovery/*.c ) \
+	$(wildcard BSP/Drivers/BSP/Components/**/*.c ) \
+	$(wildcard BSP/Drivers/BSP/CMSIS/*.c ) \
+	$(wildcard BSP/Utilities/Log/*.c)
+
+# Defines
+DEFS = \
+	-DUSE_HAL_DRIVER \
+	-DSTM32F469xx \
+	-DUSE_STM32469I_DISCO \
+	-DUSESTM324691_DISCO_REVC \
+	-DTS_MULTI_TOUCH_SUPPORTED \
+	-DDSP_CLASS_NAME=$(DSP_CLASS_NAME)
+	
+# Actual project sources
+SRC = \
+	$(wildcard harp/*.c ) 
+
+endif
+
+# Libraries
+LIBS = -lc -lm -lnosys 
+
 # C++ compiler flags used when compiling 
 CXXFLAGS = $(CPU_FLAGS) $(DEFS) $(INC) $(LIBS) \
 	-Wall \
 	-O3 \
 	--std=c++17 \
+	-ffast-math \
+	-fno-math-errno \
+	--exceptions
+	
+CCFLAGS = $(CPU_FLAGS) $(DEFS) $(INC) $(LIBS) \
+	-Wall \
+	-O3 \
 	-ffast-math \
 	-fno-math-errno \
 	--exceptions
@@ -102,6 +196,7 @@ clean:
 	-rm -rf faust/*.hpp faust/*.h
 	-rm $(ELF)
 
+# could change / remove based on how we prog later
 prog:
 	openocd -f interface/stlink-v2.cfg -f target/stm32f4x.cfg -c "program $(ELF) verify reset exit"
 
@@ -111,7 +206,7 @@ faust/%.hpp: faust/%.dsp
 # 
 deps/synth.cpp.d: synth.cpp $(FAUST_HEADERS)
 obj/synth.o: synth.cpp $(FAUST_HEADERS)
-include $(DEPS)
+-include $(DEPS)
 
 deps/%.cpp.d: %.cpp
 	-mkdir -p $(dir $@)
@@ -123,7 +218,7 @@ deps/%.cpp.d: %.cpp
 deps/%.c.d: %.c
 	-mkdir -p $(dir $@)
 	set -e; rm -f $@; \
-    $(CXX) -MM $(CXXFLAGS) $< > $@.$$$$; \
+    $(CC) -MM $(CCFLAGS) $< > $@.$$$$; \
     sed 's,\($*\)\.o[ :]*,\1.o $@ : ,g' < $@.$$$$ > $@; \
     rm -f $@.$$$$
 
@@ -140,7 +235,7 @@ $(OBJDIR)/%.o: %.cpp
 	
 $(OBJDIR)/%.o: %.c
 	-mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CCFLAGS) -c $< -o $@
 
 $(OBJDIR)/%.o: %.s
 	-mkdir -p $(dir $@)
