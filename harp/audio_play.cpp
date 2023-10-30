@@ -104,6 +104,11 @@ static TS_ActionTypeDef ts_action = TS_ACT_NONE;
 
 static faust_dsp *dsp;
 
+// Buffer management
+volatile bool first_half_ready = true;
+volatile bool second_half_ready = false;
+
+
 /* Private function prototypes -----------------------------------------------*/
 static void AudioPlay_SetHint(void);
 static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
@@ -418,12 +423,14 @@ uint8_t AUDIO_Play_Process(void)
                           &buffer_ctl.buff[0],
                           AUDIO_BUFFER_SIZE /2);
 	 */
+      while (!first_half_ready);
       float* ptr = &(buffer_ctl.faustbuff[0]);
       dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
       for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
       {
     	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
       }
+      first_half_ready = false;
       buffer_ctl.state = BUFFER_OFFSET_NONE;
     }
 
@@ -436,12 +443,14 @@ uint8_t AUDIO_Play_Process(void)
                           &buffer_ctl.buff[AUDIO_BUFFER_SIZE /2],
                           AUDIO_BUFFER_SIZE /2);
         */
+        while (!second_half_ready);
         float* ptr = &(buffer_ctl.faustbuff[AUDIO_BUFFER_SIZE/2]);
         dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL, &(ptr));
         for (int i = AUDIO_BUFFER_SIZE / 2; i < AUDIO_BUFFER_SIZE; i++)
         {
       	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
         }
+        second_half_ready = false;
         buffer_ctl.state = BUFFER_OFFSET_NONE;
     }
     break;
@@ -489,6 +498,8 @@ void BSP_AUDIO_OUT_TransferComplete_CallBack(void)
   {
     /* allows AUDIO_Play_Process() to refill 2nd part of the buffer  */
     buffer_ctl.state = BUFFER_OFFSET_FULL;
+    first_half_ready = false;
+    second_half_ready = true;
   }
 }
 
@@ -503,6 +514,8 @@ void BSP_AUDIO_OUT_HalfTransfer_CallBack(void)
   {
     /* allows AUDIO_Play_Process() to refill 1st part of the buffer  */
     buffer_ctl.state = BUFFER_OFFSET_HALF;
+    first_half_ready = true;
+    second_half_ready = false;
   }
 }
 
