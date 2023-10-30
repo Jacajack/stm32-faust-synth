@@ -10,10 +10,6 @@ CXX = $(TOOLCHAIN_PREIFX)g++
 LD = $(TOOLCHAIN_PREIFX)ld
 SIZE = $(TOOLCHAIN_PREIFX)size
 
-# Faust DSP class
-# will change later
-DSP_CLASS_NAME = panel
-
 # Output elf file
 ELF = synth.elf
 
@@ -22,6 +18,11 @@ CPU_FLAGS = -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mthumb -mfloat-abi=hard -mlittle-
 
 # ORIGINAL SYNTH !
 ifdef HWORIG
+
+# Faust DSP class
+# will change later
+DSP_CLASS_NAME = panel
+
 # Linker script
 LDSCRIPT = ./cubemx/STM32F405RGTx_FLASH.ld
 
@@ -61,6 +62,11 @@ endif
 
 # DISCOVERY BOARD BSP
 ifdef HWDISCO
+
+# Faust DSP class
+# will change later
+DSP_CLASS_NAME = sine
+
 # Linker script
 STMTOOLS = /opt/st/stm32cubeide_1.13.2/plugins/com.st.stm32cube.ide.mcu.externaltoools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.1.202309131626/tools
 LDSCRIPT = BSP/SW4STM32/STM32469I_DISCO/STM32F469NIHx_FLASH.ld
@@ -131,7 +137,8 @@ DEFS = \
 	
 # Actual project sources
 SRC = \
-	$(wildcard harp/*.c ) 
+	$(wildcard harp/*.c ) \
+	$(wildcard harp/*.cpp ) 
 
 FAUST_FILES = faust/sine.dsp
 
@@ -147,14 +154,16 @@ CXXFLAGS = $(CPU_FLAGS) $(DEFS) $(INC) $(LIBS) \
 	--std=c++17 \
 	-ffast-math \
 	-fno-math-errno \
-	--exceptions
+	--exceptions \
+	-g
 	
 CCFLAGS = $(CPU_FLAGS) $(DEFS) $(INC) $(LIBS) \
 	-Wall \
 	-O3 \
 	-ffast-math \
 	-fno-math-errno \
-	--exceptions
+	--exceptions \
+	-g
 
 # Compiler flags used when linking
 LDFLAGS = -specs=nosys.specs -T$(LDSCRIPT) $(CPU_FLAGS) $(LIBS) -Wl,--gc-sections -flto -Wl,-u_printf_float

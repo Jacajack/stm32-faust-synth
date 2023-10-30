@@ -20,6 +20,9 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include <stdio.h>
+#include <faust_dsp.hpp>
+#include <faust/sine.hpp>
+#include <fast_math.hpp>
 
 /** @addtogroup STM32F4xx_HAL_Examples
   * @{
@@ -32,6 +35,17 @@
 /* Private typedef -----------------------------------------------------------*/
 
 /* Private define ------------------------------------------------------------*/
+#ifndef DSP_CLASS_NAME
+#warning Define DSP_CLASS_NAME!
+#define DSP_CLASS_NAME default
+#endif
+
+#define MACRO_JOIN_( a, b ) a ## b
+#define MACRO_JOIN( a, b ) MACRO_JOIN_( a, b )
+#define DSP_CLASS_PREFIX faust_dsp_
+#define DSP_CLASS MACRO_JOIN( DSP_CLASS_PREFIX, DSP_CLASS_NAME )
+#define DSP_CLASS_HEADER <faust/DSP_CLASS_NAME.hpp>
+#include DSP_CLASS_HEADER
 
 /*Since SysTick is set to 1ms (unless to set it quicker) */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
@@ -57,7 +71,8 @@ typedef enum {
 }BUFFER_StateTypeDef;
 
 typedef struct {
-  uint8_t buff[AUDIO_BUFFER_SIZE];
+  float faustbuff[AUDIO_BUFFER_SIZE];
+  uint16_t buff[AUDIO_BUFFER_SIZE];
   uint32_t fptr;
   BUFFER_StateTypeDef state;
   uint32_t AudioFileSize;
@@ -87,11 +102,27 @@ static uint32_t AudioFreq[9] =
 
 static TS_ActionTypeDef ts_action = TS_ACT_NONE;
 
+static faust_dsp *dsp;
+
 /* Private function prototypes -----------------------------------------------*/
 static void AudioPlay_SetHint(void);
 static uint32_t GetData(void *pdata, uint32_t offset, uint8_t *pbuf, uint32_t NbrOfData);
 
 /* Private functions ---------------------------------------------------------*/
+
+//! Clamps float data to specified range
+static inline float clamp( float x, float min, float max )
+{
+	if ( x > max ) return max;
+	else if ( x < min ) return min;
+	else return x;
+}
+
+//! Converts a float sample to uint16_t format required by DMA via int16_t in which the codec expects the data. Clamps float data as well.
+static inline uint16_t float_to_dma( float x )
+{
+	return static_cast<uint16_t>( static_cast<int16_t>( 32767 * clamp( x, -1.f, 1.f ) ) );
+}
 
 /**
   * @brief  Audio Play demo
@@ -105,6 +136,10 @@ void AudioPlay_demo (void)
   AudioFreq_ptr = AudioFreq+6; /*AF_48K*/
   uint8_t FreqStr[256] = {0};
   Point Points2[] = {{100, 140}, {160, 180}, {100, 220}};
+
+  // The DSP
+  faust_dsp dsp_instance( new DSP_CLASS, 48000 );
+  dsp = &dsp_instance;
 
   uwPauseEnabledStatus = 1; /* 0 when audio is running, 1 when Pause is on */
   uwVolume = AUDIO_DEFAULT_VOLUME;
@@ -328,9 +363,10 @@ static void AudioPlay_SetHint(void)
   */
 AUDIO_ErrorTypeDef AUDIO_Play_Start(uint32_t *psrc_address, uint32_t file_size)
 {
-  uint32_t bytesread;
+  // uint32_t bytesread;
 
   buffer_ctl.state = BUFFER_OFFSET_NONE;
+  /*
   buffer_ctl.AudioFileSize = file_size;
   buffer_ctl.SrcAddress = psrc_address;
 
@@ -346,6 +382,17 @@ AUDIO_ErrorTypeDef AUDIO_Play_Start(uint32_t *psrc_address, uint32_t file_size)
     return AUDIO_ERROR_NONE;
   }
   return AUDIO_ERROR_IO;
+  */
+  float* ptr = &(buffer_ctl.faustbuff[0]);
+  dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
+  for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
+  {
+	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
+  }
+  buffer_ctl.state = BUFFER_OFFSET_NONE;
+  BSP_AUDIO_OUT_Play(&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
+  audio_state = AUDIO_STATE_PLAYING;
+  return AUDIO_ERROR_NONE;
 }
 
 /**
@@ -355,47 +402,47 @@ AUDIO_ErrorTypeDef AUDIO_Play_Start(uint32_t *psrc_address, uint32_t file_size)
   */
 uint8_t AUDIO_Play_Process(void)
 {
-  uint32_t bytesread;
+  // uint32_t bytesread;
   AUDIO_ErrorTypeDef error_state = AUDIO_ERROR_NONE;
 
   switch(audio_state)
   {
   case AUDIO_STATE_PLAYING:
 
-    if(buffer_ctl.fptr >= buffer_ctl.AudioFileSize)
-    {
-      /* Play audio sample again ... */
-      buffer_ctl.fptr = 0;
-      error_state = AUDIO_ERROR_EOF;
-    }
-
     /* 1st half buffer played; so fill it and continue playing from bottom*/
     if(buffer_ctl.state == BUFFER_OFFSET_HALF)
     {
+	/*
       bytesread = GetData((void *)buffer_ctl.SrcAddress,
                           buffer_ctl.fptr,
                           &buffer_ctl.buff[0],
                           AUDIO_BUFFER_SIZE /2);
-
-      if( bytesread >0)
+	 */
+      float* ptr = &(buffer_ctl.faustbuff[0]);
+      dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
+      for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
       {
-        buffer_ctl.state = BUFFER_OFFSET_NONE;
-        buffer_ctl.fptr += bytesread;
+    	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
       }
+      buffer_ctl.state = BUFFER_OFFSET_NONE;
     }
 
     /* 2nd half buffer played; so fill it and continue playing from top */
     if(buffer_ctl.state == BUFFER_OFFSET_FULL)
     {
+    	/*
       bytesread = GetData((void *)buffer_ctl.SrcAddress,
                           buffer_ctl.fptr,
                           &buffer_ctl.buff[AUDIO_BUFFER_SIZE /2],
                           AUDIO_BUFFER_SIZE /2);
-      if( bytesread > 0)
-      {
+        */
+        float* ptr = &(buffer_ctl.faustbuff[AUDIO_BUFFER_SIZE/2]);
+        dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL, &(ptr));
+        for (int i = AUDIO_BUFFER_SIZE / 2; i < AUDIO_BUFFER_SIZE; i++)
+        {
+      	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
+        }
         buffer_ctl.state = BUFFER_OFFSET_NONE;
-        buffer_ctl.fptr += bytesread;
-      }
     }
     break;
 
@@ -480,8 +527,6 @@ void BSP_AUDIO_OUT_Error_CallBack(void)
   /* could also generate a system reset to recover from the error */
   /* .... */
 }
-
-
 
 /**
   * @}
