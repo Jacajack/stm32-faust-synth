@@ -33,20 +33,20 @@
 typedef enum
 {
   TOUCHSCREEN_DEMO1_INDEX    = 0,
-  TOUCHSCREEN_DEMO2_INDEX    = 1,
-  TOUCHSCREEN_DEMO3_INDEX    = 2,
-  LCD_DEMO_INDEX             = 3,
-  AUDIO_RECORD_INDEX         = 4,
-  AUDIO_PLAY_INDEX           = 5,
-  SD_DEMO_INDEX              = 6,
-  LCD_LOG_DEMO_INDEX         = 7,
-  SDRAM_DEMO_INDEX           = 8,
-  SDRAM_DMA_DEMO_INDEX       = 9,
-  SRAM_DEMO_INDEX            = 10,
-  EEPROM_DEMO_INDEX          = 11,
-  QSPI_DEMO_INDEX            = 12,
-  ANIMATION_DEMO_INDEX       = 13,
-  MAX_DEMO_INDEX             = 14
+  //TOUCHSCREEN_DEMO2_INDEX    = 1,
+  //TOUCHSCREEN_DEMO3_INDEX    = 2,
+  //LCD_DEMO_INDEX             = 3,
+  //AUDIO_RECORD_INDEX         = 4,
+  AUDIO_PLAY_INDEX           = 1,
+  //SD_DEMO_INDEX              = 6,
+  //LCD_LOG_DEMO_INDEX         = 7,
+  //SDRAM_DEMO_INDEX           = 8,
+  //SDRAM_DMA_DEMO_INDEX       = 9,
+  //SRAM_DEMO_INDEX            = 10,
+  //EEPROM_DEMO_INDEX          = 11,
+  //QSPI_DEMO_INDEX            = 12,
+  //ANIMATION_DEMO_INDEX       = 13,
+  MAX_DEMO_INDEX             = 2
 
 } BSP_DemoIndexTypedef;
 
@@ -73,17 +73,17 @@ BSP_DemoTypedef  BSP_examples[]=
 {
   {Touchscreen_demo1, "TOUCHSCREEN DEMO 1", 0},
   #if (TS_MULTI_TOUCH_SUPPORTED == 1)
-  {Touchscreen_demo2, "TOUCHSCREEN DEMO 2", 1},
+  //{Touchscreen_demo2, "TOUCHSCREEN DEMO 2", 1},
   #endif
-  {LCD_demo, "LCD", 0},
+  //{LCD_demo, "LCD", 0},
   {AudioPlay_demo, "AUDIO PLAY", 0},
-  {SD_demo, "mSD", 0},
-  {Log_demo, "LCD LOG", 0},
-  {SDRAM_demo, "SDRAM", 0},
-  {SDRAM_DMA_demo, "SDRAM DMA", 0},
-  {EEPROM_demo, "EEPROM", 0},
-  {QSPI_demo, "QSPI", 0},
-  {Animation_demo, "ANIMATION", 0}
+  //{SD_demo, "mSD", 0},
+  //{Log_demo, "LCD LOG", 0},
+  //{SDRAM_demo, "SDRAM", 0},
+  //{SDRAM_DMA_demo, "SDRAM DMA", 0},
+  //{EEPROM_demo, "EEPROM", 0},
+  //{QSPI_demo, "QSPI", 0},
+  //{Animation_demo, "ANIMATION", 0}
 };
 
 /* Private functions ---------------------------------------------------------*/
@@ -342,7 +342,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     /* Communication with TS is done via I2C. 
     Often the sw requires ISRs (interrupt service routines) to be quick while communication 
     with I2C can be considered relatively long (depending on SW requirements). 
-    Considering that the TS feature don’t need immediate reaction, 
+    Considering that the TS feature donï¿½t need immediate reaction, 
 	it is suggested to use polling mode instead of EXTI mode, 
     in order to avoid blocking I2C communication on interrupt service routines */
 
@@ -358,7 +358,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     /* Communication with SD is done via I2C. 
     Often the sw requires ISRs (interrupt service routines) to be quick while communication 
     with I2C can be considered relatively long (depending on SW requirements). 
-    Considering that the SD feature don’t need immediate reaction, 
+    Considering that the SD feature donï¿½t need immediate reaction, 
 	it is suggested to use polling mode instead of EXTI mode, 
     in order to avoid blocking I2C communication on interrupt service routines */
 
