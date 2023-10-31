@@ -96,6 +96,8 @@ SYS_SRC = \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c \
+BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma2d.c \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c \
 BSP/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dsi.c \
@@ -140,7 +142,10 @@ SRC = \
 	$(wildcard harp/*.c ) \
 	$(wildcard harp/*.cpp ) 
 
-FAUST_FILES = faust/sine.dsp
+FAUST_FILES = \
+	faust/sine.dsp \
+	faust/ks_harp.dsp
+
 
 endif
 

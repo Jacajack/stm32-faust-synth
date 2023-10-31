@@ -72,9 +72,7 @@ typedef enum {
 
 typedef struct {
   float faustbuff[AUDIO_BUFFER_SIZE];
-  uint16_t buff[AUDIO_BUFFER_SIZE];
-  uint16_t buff1[AUDIO_BUFFER_SIZE];
-  uint8_t sending_buff;
+  uint32_t buff[AUDIO_BUFFER_SIZE];
   uint32_t fptr;
   BUFFER_StateTypeDef state;
   uint32_t AudioFileSize;
@@ -126,10 +124,10 @@ static inline float clamp( float x, float min, float max )
 	else return x;
 }
 
-//! Converts a float sample to uint16_t format required by DMA via int16_t in which the codec expects the data. Clamps float data as well.
-static inline uint16_t float_to_dma( float x )
+//! Converts a float sample to uint32 format required by DMA via 24 bit in which the codec expects the data. Clamps float data as well.
+static inline uint32_t float_to_dma( float x )
 {
-	return static_cast<uint16_t>( static_cast<int16_t>( 32767 * clamp( x, -1.f, 1.f ) ) );
+	return static_cast<uint32_t>( static_cast<int32_t>( 838860 * clamp( x, -1.f, 1.f ) ) );
 }
 
 /**
@@ -242,6 +240,10 @@ void AudioPlay_demo (void)
     BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
     BSP_LCD_SetTextColor(LCD_COLOR_BLUE);
 
+
+    // AUDIO_Play_Process();
+
+
     /* Get the TouchScreen State */
     ts_action = (TS_ActionTypeDef) TouchScreen_GetTouchPosition();
 
@@ -334,13 +336,13 @@ void AudioPlay_demo (void)
     BSP_LED_Toggle(LED4);
 
     /* Insert 100 ms delay */
-    HAL_Delay(100);
+    // HAL_Delay(100);
     if (CheckForUserInput() > 0)
     {
       /* Set LED4 */
       BSP_LED_On(LED4);
 
-      BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW);
+      //BSP_AUDIO_OUT_Stop(CODEC_PDWN_SW);
       return;
     }
   }
@@ -404,19 +406,17 @@ AUDIO_ErrorTypeDef AUDIO_Play_Start(uint32_t *psrc_address, uint32_t file_size)
   }
   return AUDIO_ERROR_IO;
   */
-  // Fill first buffer
+
   float* ptr = &(buffer_ctl.faustbuff[0]);
-  dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
-  for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
+  dsp->compute( AUDIO_BUFFER_SIZE, (float**)NULL , &(ptr) );
+  for (int i = 0; i < AUDIO_BUFFER_SIZE; i++)
   {
-	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
-	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
+	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
   }
   first_half_ready = false;
   second_half_ready = false;
-  sending_buff = 0;
   buffer_ctl.state = BUFFER_OFFSET_NONE;
-  BSP_AUDIO_OUT_Play(&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
+  BSP_AUDIO_OUT_Play((uint16_t*)&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE * 4);
   audio_state = AUDIO_STATE_PLAYING;
   return AUDIO_ERROR_NONE;
 }
@@ -446,11 +446,10 @@ uint8_t AUDIO_Play_Process(void)
 	 */
       while (!first_half_ready);
       float* ptr = &(buffer_ctl.faustbuff[0]);
-      dsp->compute( AUDIO_BUFFER_SIZE / 4, (float**)NULL , &(ptr) );
-      for (int i = 0; i < AUDIO_BUFFER_SIZE / 4; i++)
+      dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
+      for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
       {
-    	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
-    	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
+    	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
       }
       first_half_ready = false;
       buffer_ctl.state = BUFFER_OFFSET_NONE;
@@ -467,11 +466,10 @@ uint8_t AUDIO_Play_Process(void)
         */
         while (!second_half_ready);
         float* ptr = &(buffer_ctl.faustbuff[AUDIO_BUFFER_SIZE/2]);
-        dsp->compute( AUDIO_BUFFER_SIZE / 4, (float**)NULL, &(ptr));
-        for (int i = AUDIO_BUFFER_SIZE / 4; i < AUDIO_BUFFER_SIZE / 2; i++)
+        dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL, &(ptr));
+        for (int i = AUDIO_BUFFER_SIZE / 2; i < AUDIO_BUFFER_SIZE; i++)
         {
-      	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
-      	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
+      	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
         }
         second_half_ready = false;
         buffer_ctl.state = BUFFER_OFFSET_NONE;
