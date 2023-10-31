@@ -73,6 +73,8 @@ typedef enum {
 typedef struct {
   float faustbuff[AUDIO_BUFFER_SIZE];
   uint16_t buff[AUDIO_BUFFER_SIZE];
+  uint16_t buff1[AUDIO_BUFFER_SIZE];
+  uint8_t sending_buff;
   uint32_t fptr;
   BUFFER_StateTypeDef state;
   uint32_t AudioFileSize;
@@ -102,12 +104,13 @@ static uint32_t AudioFreq[9] =
 
 static TS_ActionTypeDef ts_action = TS_ACT_NONE;
 
+// Faust DSP class instance
 static faust_dsp *dsp;
 
 // Buffer management
-volatile bool first_half_ready = true;
+volatile bool first_half_ready = false;
 volatile bool second_half_ready = false;
-
+volatile int audio_underrun_counter = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void AudioPlay_SetHint(void);
@@ -138,13 +141,22 @@ void AudioPlay_demo (void)
 {
   uint8_t ts_status = TS_OK;
   uint32_t *AudioFreq_ptr;
-  AudioFreq_ptr = AudioFreq+6; /*AF_48K*/
+  AudioFreq_ptr = AudioFreq+0; /*AF_8K = 0, AF_48k = 6*/
   uint8_t FreqStr[256] = {0};
   Point Points2[] = {{100, 140}, {160, 180}, {100, 220}};
 
   // The DSP
-  faust_dsp dsp_instance( new DSP_CLASS, 48000 );
+  faust_dsp dsp_instance( new DSP_CLASS, 8000 );
   dsp = &dsp_instance;
+
+  const std::unordered_map<float*, faust_control> &controls = dsp->get_controls( );
+  // PRIYANKA Modify for slider input basically
+  /*
+  for ( const auto &[ptr, ctl] : controls )
+  {
+
+  }
+  */
 
   uwPauseEnabledStatus = 1; /* 0 when audio is running, 1 when Pause is on */
   uwVolume = AUDIO_DEFAULT_VOLUME;
@@ -257,12 +269,14 @@ void AudioPlay_demo (void)
         break;
       case TS_ACT_FREQ_DOWN:
         /*Decrease Frequency */
+    	  // change this to if curr freq > max slider freq
         if (*AudioFreq_ptr != 8000)
         {
-          AudioFreq_ptr--;
           sprintf((char*)FreqStr, "      FREQ: %6lu     ", *AudioFreq_ptr);
           BSP_AUDIO_OUT_Pause();
-          BSP_AUDIO_OUT_SetFrequency(*AudioFreq_ptr);
+          // PRIYANKA
+          // change the hslider frequency of sine.hpp by the step amount
+          // do nothing? Run dsp_compute and fill?
           BSP_AUDIO_OUT_Resume();
           BSP_AUDIO_OUT_SetVolume(uwVolume);
         }
@@ -270,12 +284,14 @@ void AudioPlay_demo (void)
         break;
       case TS_ACT_FREQ_UP:
         /* Increase Frequency */
+    	  // change this to if curr freq > max slider freq
         if (*AudioFreq_ptr != 96000)
         {
-          AudioFreq_ptr++;
           sprintf((char*)FreqStr, "      FREQ: %6lu     ", *AudioFreq_ptr);
           BSP_AUDIO_OUT_Pause();
-          BSP_AUDIO_OUT_SetFrequency(*AudioFreq_ptr);
+          // PRIYANKA
+          // change the hslider frequency of sine.hpp by the step amount
+          // do nothing? Run dsp_compute and fill?
           BSP_AUDIO_OUT_Resume();
           BSP_AUDIO_OUT_SetVolume(uwVolume);
         }
@@ -388,12 +404,17 @@ AUDIO_ErrorTypeDef AUDIO_Play_Start(uint32_t *psrc_address, uint32_t file_size)
   }
   return AUDIO_ERROR_IO;
   */
+  // Fill first buffer
   float* ptr = &(buffer_ctl.faustbuff[0]);
   dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
   for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
   {
-	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
+	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
+	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
   }
+  first_half_ready = false;
+  second_half_ready = false;
+  sending_buff = 0;
   buffer_ctl.state = BUFFER_OFFSET_NONE;
   BSP_AUDIO_OUT_Play(&buffer_ctl.buff[0], AUDIO_BUFFER_SIZE);
   audio_state = AUDIO_STATE_PLAYING;
@@ -425,10 +446,11 @@ uint8_t AUDIO_Play_Process(void)
 	 */
       while (!first_half_ready);
       float* ptr = &(buffer_ctl.faustbuff[0]);
-      dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL , &(ptr) );
-      for (int i = 0; i < AUDIO_BUFFER_SIZE / 2; i++)
+      dsp->compute( AUDIO_BUFFER_SIZE / 4, (float**)NULL , &(ptr) );
+      for (int i = 0; i < AUDIO_BUFFER_SIZE / 4; i++)
       {
-    	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
+    	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
+    	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
       }
       first_half_ready = false;
       buffer_ctl.state = BUFFER_OFFSET_NONE;
@@ -445,10 +467,11 @@ uint8_t AUDIO_Play_Process(void)
         */
         while (!second_half_ready);
         float* ptr = &(buffer_ctl.faustbuff[AUDIO_BUFFER_SIZE/2]);
-        dsp->compute( AUDIO_BUFFER_SIZE / 2, (float**)NULL, &(ptr));
-        for (int i = AUDIO_BUFFER_SIZE / 2; i < AUDIO_BUFFER_SIZE; i++)
+        dsp->compute( AUDIO_BUFFER_SIZE / 4, (float**)NULL, &(ptr));
+        for (int i = AUDIO_BUFFER_SIZE / 4; i < AUDIO_BUFFER_SIZE / 2; i++)
         {
-      	  buffer_ctl.buff[i] = float_to_dma(buffer_ctl.faustbuff[i]);
+      	  buffer_ctl.buff[2 * i] = float_to_dma(buffer_ctl.faustbuff[i]);
+      	  buffer_ctl.buff[2 * i + 1] = float_to_dma(buffer_ctl.faustbuff[i]);
         }
         second_half_ready = false;
         buffer_ctl.state = BUFFER_OFFSET_NONE;
