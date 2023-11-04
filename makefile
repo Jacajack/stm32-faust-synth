@@ -149,6 +149,80 @@ FAUST_FILES = \
 
 endif
 
+ifdef HWHARP
+# Faust DSP class
+# will change later
+DSP_CLASS_NAME = sine
+
+# Linker script
+STMTOOLS = /opt/st/stm32cubeide_1.13.2/plugins/com.st.stm32cube.ide.mcu.externaltoools.gnu-tools-for-stm32.11.3.rel1.linux64_1.1.1.202309131626/tools
+LDSCRIPT = stringless_harp/STM32F469ZITX_FLASH.ld
+
+# Include directories
+INC = \
+	-I. \
+	-Istringless_harp/Inc \
+	-I/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Inc \
+	-I/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy \
+	-I/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Middlewares/Third_Party/FatFs/src \
+	-I/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/CMSIS/Device/ST/STM32F4xx/Include \
+	-I/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/CMSIS/Include \
+	-Istringless_harp/Drivers/STM32F4xx_HAL_Driver/Inc \
+	-Istringless_harp/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy \
+	-Istringless_harp/FATFS/Target \
+	-Istringless_harp/FATFS/App \
+	-Iharp_zit6/Inc \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1 \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1/arm-none-eabi/thumb/nofp \
+	-I$(STMTOOLS)/arm-none-eabi/include/c++/11.3.1/backward
+
+	
+# Driver sources + Cube code
+SYS_SRC = \
+	stringless_harp/Core/Startup/startup_stm32f469zitx.s \
+	stringless_harp/Core/Src/syscalls.c \
+	$(wildcard stringless_harp/Drivers/STM32F4xx_HAL_Driver/*.c) \
+	/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dac_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ramfunc.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c \
+$(wildcard /home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Middlewares/Third_Party/FatFs/src/*.c) \
+/home/papereir/STM32Cube/Repository/STM32Cube_FW_F4_V1.27.1/Middlewares/Third_Party/FatFs/src/option/syscall.c
+
+# Defines
+DEFS = \
+	-DUSE_HAL_DRIVER \
+	-DSTM32F469xx \
+	-DDSP_CLASS_NAME=$(DSP_CLASS_NAME)
+	
+# Actual project sources
+SRC = \
+	$(wildcard harp_zit6/Src/*.c) \
+	$(wildcard stringless_harp/FATFS/**/*.c)
+	
+
+FAUST_FILES = \
+	faust/sine.dsp \
+	faust/ks_harp.dsp
+
+endif
+
 # Libraries
 LIBS = -lc -lm -lnosys 
 
