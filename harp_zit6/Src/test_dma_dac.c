@@ -15,7 +15,7 @@
 
 #define   OUT_FREQ          600                                 // Output waveform frequency
 #define   SINE_RES          128                                  // Waveform resolution
-#define   CNT_FREQ          90000000      						//APB1 clock config is 90 MHz                       // TIM6 counter clock (prescaled APB1)
+#define   CNT_FREQ          16000000      						//APB1 clock config is 90 MHz                       // TIM6 counter clock (prescaled APB1)
 #define   TIM_PERIOD        ((CNT_FREQ)/((SINE_RES)*(OUT_FREQ))) // Autoreload reg value
 
 static uint16_t sine12bit[SINE_RES] = { 2048, 2145, 2242, 2339, 2435, 2530, 2624, 2717, 2808, 2897,
