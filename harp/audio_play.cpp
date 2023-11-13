@@ -48,9 +48,24 @@
 #define DSP_CLASS_HEADER <faust/DSP_CLASS_NAME.hpp>
 #include DSP_CLASS_HEADER
 
-/*
- * FROM DAC_SIGNAL_GENERATION MAIN.H
- */
+
+#define   OUT_FREQ          600                                 // Output waveform frequency
+#define   SINE_RES          128                                  // Waveform resolution
+#define   CNT_FREQ          45000000      						//APB1 clock config is 16 MHz
+#define   TIM_PERIOD        ((CNT_FREQ)/((SINE_RES)*(OUT_FREQ))) // Autoreload reg value
+
+uint32_t sine12bit[SINE_RES] = {
+    2048, 2149, 2250, 2350, 2450, 2549, 2646, 2742, 2837, 2929, 3020, 3108, 3193, 3275, 3355,
+    3431, 3504, 3574, 3639, 3701, 3759, 3812, 3861, 3906, 3946, 3982, 4013, 4039, 4060, 4076,
+    4087, 4094, 4095, 4091, 4082, 4069, 4050, 4026, 3998, 3965, 3927, 3884, 3837, 3786, 3730,
+    3671, 3607, 3539, 3468, 3394, 3316, 3235, 3151, 3064, 2975, 2883, 2790, 2695, 2598, 2500,
+    2400, 2300, 2199, 2098, 1997, 1896, 1795, 1695, 1595, 1497, 1400, 1305, 1212, 1120, 1031,
+    944, 860, 779, 701, 627, 556, 488, 424, 365, 309, 258, 211, 168, 130, 97,
+    69, 45, 26, 13, 4, 0, 1, 8, 19, 35, 56, 82, 113, 149, 189,
+    234, 283, 336, 394, 456, 521, 591, 664, 740, 820, 902, 987, 1075, 1166, 1258,
+    1353, 1449, 1546, 1645, 1745, 1845, 1946, 2047
+};
+
 /* Exported types ------------------------------------------------------------*/
 /* Exported constants --------------------------------------------------------*/
 
@@ -235,6 +250,81 @@ static void DAC_Ch1_TriangleConfig(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+
+}
+
+static void generate_sine_wave(TIM_HandleTypeDef* tim_handler, DAC_HandleTypeDef* dac_handler)
+{
+	MX_DMA_Init()
+	// HAL_DMA_Init(DMA_HandleTypeDef *hdma); // COME BACK TO THIS TO INIT DMA
+  //HAL_DAC_DeInit(dac_handler);
+  //HAL_TIM_Base_DeInit(tim_handler);
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  tim_handler->Instance = TIM6;
+  tim_handler->Init.Prescaler = 0;
+  tim_handler->Init.CounterMode = TIM_COUNTERMODE_UP;
+  tim_handler->Init.Period = TIM_PERIOD;
+  tim_handler->Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+  if (HAL_TIM_Base_Init(tim_handler) != HAL_OK)
+  {
+		BSP_LED_On(LED3);
+		// Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(tim_handler, &sMasterConfig) != HAL_OK)
+  {
+		BSP_LED_On(LED3);
+		// Error_Handler();
+  }
+
+  HAL_TIM_Base_Start(tim_handler);
+
+  /*##-1- Initialize the DAC peripheral ######################################*/
+  if (HAL_DAC_Init(dac_handler) != HAL_OK)
+  {
+	/* Initialization Error */
+		BSP_LED_On(LED3);
+		// Error_Handler();
+  }
+
+  sConfig.DAC_Trigger = DAC_TRIGGER_T6_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+
+  if (HAL_DAC_ConfigChannel(dac_handler, &sConfig, DAC_CHANNEL_1) != HAL_OK)
+  {
+	/* Channel configuration Error */
+		BSP_LED_On(LED3);
+	// Error_Handler();
+  }
+
+  /*##-2- Enable DAC selected channel and associated DMA #############################*/
+  if (HAL_DAC_Start_DMA(dac_handler, DAC_CHANNEL_1, (uint32_t *)sine12bit, SINE_RES, DAC_ALIGN_12B_R) != HAL_OK)
+  {
+	/* Start DMA Error */
+		BSP_LED_On(LED3);
+	// Error_Handler();
+  }
+
+  BSP_LED_On(LED1);
+}
+
+
+/**
   * @brief  Audio Play demo
   * @param  None
   * @retval None
@@ -254,6 +344,7 @@ void AudioPlay_demo (void)
   // DAC SETUP NEW
   HAL_DAC_MspInit(&DacHandle);
   HAL_TIM_Base_MspInit(&htim);
+  BSP_AUDIO_OUT_DeInit();
 
   /*##-1- Configure the DAC peripheral #######################################*/
   DacHandle.Instance = DACx;
@@ -262,7 +353,8 @@ void AudioPlay_demo (void)
   TIM6_Config();
 
   /* Triangle Wave generator -------------------------------------------*/
-  DAC_Ch1_TriangleConfig();
+  //DAC_Ch1_TriangleConfig();
+  generate_sine_wave(&htim, &DacHandle);
 
   // END
 
@@ -303,7 +395,8 @@ void AudioPlay_demo (void)
 
 /*  if(BSP_AUDIO_OUT_Init(OUTPUT_DEVICE_SPEAKER, uwVolume, *AudioFreq_ptr) == 0)
   if(BSP_AUDIO_OUT_Init(OUTPUT_DEVICE_BOTH, uwVolume, *AudioFreq_ptr) == 0)*/
-  if(BSP_AUDIO_OUT_Init(OUTPUT_DEVICE_BOTH, uwVolume, *AudioFreq_ptr) == 0)
+  //if(BSP_AUDIO_OUT_Init(OUTPUT_DEVICE_BOTH, uwVolume, *AudioFreq_ptr) == 0)
+  if (1)
   {
     BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
     BSP_LCD_SetTextColor(LCD_COLOR_GREEN);
@@ -323,7 +416,7 @@ void AudioPlay_demo (void)
   using Transfer complete and/or half transfer complete interrupts callbacks
   (DISCOVERY_AUDIO_TransferComplete_CallBack() or DISCOVERY_AUDIO_HalfTransfer_CallBack()...
   */
-  AUDIO_Play_Start((uint32_t *)AUDIO_SRC_FILE_ADDRESS, (uint32_t)AUDIO_FILE_SIZE);
+  // AUDIO_Play_Start((uint32_t *)AUDIO_SRC_FILE_ADDRESS, (uint32_t)AUDIO_FILE_SIZE);
 
   /* Display the state on the screen */
   BSP_LCD_SetBackColor(LCD_COLOR_WHITE);
@@ -379,7 +472,7 @@ void AudioPlay_demo (void)
         else
           uwVolume = 100;
         sprintf((char*)FreqStr, "       VOL:    %3lu     ", uwVolume);
-        BSP_AUDIO_OUT_SetVolume(uwVolume);
+        //BSP_AUDIO_OUT_SetVolume(uwVolume);
         BSP_LCD_DisplayStringAt(0, LINE(9), (uint8_t *)FreqStr, CENTER_MODE);
         break;
       case TS_ACT_VOLUME_DOWN:
@@ -389,7 +482,7 @@ void AudioPlay_demo (void)
         else
           uwVolume = 0;
         sprintf((char*)FreqStr, "       VOL:    %3lu     ", uwVolume);
-        BSP_AUDIO_OUT_SetVolume(uwVolume);
+        //BSP_AUDIO_OUT_SetVolume(uwVolume);
         BSP_LCD_DisplayStringAt(0, LINE(9), (uint8_t *)FreqStr, CENTER_MODE);
         break;
       case TS_ACT_FREQ_DOWN:
@@ -398,12 +491,12 @@ void AudioPlay_demo (void)
         if (*AudioFreq_ptr != 8000)
         {
           sprintf((char*)FreqStr, "      FREQ: %6lu     ", *AudioFreq_ptr);
-          BSP_AUDIO_OUT_Pause();
+          //BSP_AUDIO_OUT_Pause();
           // PRIYANKA
           // change the hslider frequency of sine.hpp by the step amount
           // do nothing? Run dsp_compute and fill?
-          BSP_AUDIO_OUT_Resume();
-          BSP_AUDIO_OUT_SetVolume(uwVolume);
+          // BSP_AUDIO_OUT_Resume();
+          // BSP_AUDIO_OUT_SetVolume(uwVolume);
         }
         BSP_LCD_DisplayStringAt(0, LINE(10), (uint8_t *)FreqStr, CENTER_MODE);
         break;
@@ -413,12 +506,12 @@ void AudioPlay_demo (void)
         if (*AudioFreq_ptr != 96000)
         {
           sprintf((char*)FreqStr, "      FREQ: %6lu     ", *AudioFreq_ptr);
-          BSP_AUDIO_OUT_Pause();
+          //BSP_AUDIO_OUT_Pause();
           // PRIYANKA
           // change the hslider frequency of sine.hpp by the step amount
           // do nothing? Run dsp_compute and fill?
-          BSP_AUDIO_OUT_Resume();
-          BSP_AUDIO_OUT_SetVolume(uwVolume);
+          // BSP_AUDIO_OUT_Resume();
+          // BSP_AUDIO_OUT_SetVolume(uwVolume);
         }
 
         BSP_LCD_DisplayStringAt(0, LINE(10), (uint8_t *)FreqStr, CENTER_MODE);
@@ -427,7 +520,7 @@ void AudioPlay_demo (void)
         /* Set Pause / Resume */
         if (uwPauseEnabledStatus == 1)
         { /* Pause is enabled, call Resume */
-          BSP_AUDIO_OUT_Resume();
+          // BSP_AUDIO_OUT_Resume();
           uwPauseEnabledStatus = 0;
           BSP_LCD_DisplayStringAt(0, LINE(8), (uint8_t *)"       PLAYING...     ", CENTER_MODE);
           BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
@@ -438,7 +531,7 @@ void AudioPlay_demo (void)
         }
         else
         { /* Pause the playback */
-          BSP_AUDIO_OUT_Pause();
+          // BSP_AUDIO_OUT_Pause();
           uwPauseEnabledStatus = 1;
           BSP_LCD_DisplayStringAt(0, LINE(8), (uint8_t *)"       PAUSE  ...     ", CENTER_MODE);
           BSP_LCD_SetTextColor(LCD_COLOR_WHITE);
