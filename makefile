@@ -218,7 +218,7 @@ CCFLAGS = $(CPU_FLAGS) $(DEFS) $(INC) $(LIBS) \
 	-g
 
 # Compiler flags used when linking
-LDFLAGS = -specs=nosys.specs -T$(LDSCRIPT) $(CPU_FLAGS) $(LIBS) -Wl,--gc-sections -flto -Wl,-u_printf_float
+LDFLAGS = -specs=nosys.specs -T$(LDSCRIPT) $(CPU_FLAGS) $(LIBS) -Wl,--gc-sections -flto -Wl,-u_printf_float -Wl,--no-warn-rwx-segment
 
 # Temporary object files directory
 OBJDIR = obj

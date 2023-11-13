@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+// #include "stm32f4xx_hal_dac.h"
 #include <stdio.h>
 #include <faust_dsp.hpp>
 #include <faust/sine.hpp>
@@ -46,6 +47,14 @@
 #define DSP_CLASS MACRO_JOIN( DSP_CLASS_PREFIX, DSP_CLASS_NAME )
 #define DSP_CLASS_HEADER <faust/DSP_CLASS_NAME.hpp>
 #include DSP_CLASS_HEADER
+
+/*
+ * FROM DAC_SIGNAL_GENERATION MAIN.H
+ */
+/* Exported types ------------------------------------------------------------*/
+/* Exported constants --------------------------------------------------------*/
+
+
 
 /*Since SysTick is set to 1ms (unless to set it quicker) */
 /* to run up to 48khz, a buffer around 1000 (or more) is requested*/
@@ -90,6 +99,18 @@ typedef enum {
 
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
+
+/*
+ * FROM DAC_SIGNAL_GENERATION MAIN.H
+ */
+DAC_HandleTypeDef    DacHandle;
+static TIM_HandleTypeDef  htim;
+static DAC_ChannelConfTypeDef sConfig;
+const uint8_t aEscalator8bit[6] = {0x0, 0x33, 0x66, 0x99, 0xCC, 0xFF};
+__IO uint8_t ubSelectedWavesForm = 1;
+__IO uint8_t ubKeyPressed = SET;
+// END
+
 static AUDIO_BufferTypeDef  buffer_ctl;
 static AUDIO_PLAYBACK_StateTypeDef  audio_state;
 __IO uint32_t uwVolume = 20;
@@ -124,10 +145,93 @@ static inline float clamp( float x, float min, float max )
 	else return x;
 }
 
-//! Converts a float sample to uint32 format required by DMA via 24 bit in which the codec expects the data. Clamps float data as well.
+//! Converts a float sample to 32-bit format required by DMA via 12 bit in which the dma expects the data. Clamps float data as well.
 static inline uint32_t float_to_dma( float x )
 {
-	return static_cast<uint32_t>( static_cast<int32_t>( 838860 * clamp( x, -1.f, 1.f ) ) );
+	return static_cast<uint32_t>( static_cast<int32_t>( 2047 * clamp( x, -1.f, 1.f ) ) );
+}
+
+/**
+  * @brief  TIM6 Configuration
+  * @note   TIM6 configuration is based on APB1 frequency
+  * @note   TIM6 Update event occurs each TIM6CLK/256
+  * @param  None
+  * @retval None
+  */
+static void TIM6_Config(void)
+{
+  TIM_MasterConfigTypeDef sMasterConfig;
+
+  /*##-1- Configure the TIM peripheral #######################################*/
+  /* Time base configuration */
+  htim.Instance = TIM6;
+
+  htim.Init.Period            = 0x7FF;
+  htim.Init.Prescaler         = 0;
+  htim.Init.ClockDivision     = 0;
+  htim.Init.CounterMode       = TIM_COUNTERMODE_UP;
+  htim.Init.RepetitionCounter = 0;
+  HAL_TIM_Base_Init(&htim);
+
+  /* TIM6 TRGO selection */
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+
+  HAL_TIMEx_MasterConfigSynchronization(&htim, &sMasterConfig);
+
+  /*##-2- Enable TIM peripheral counter ######################################*/
+  HAL_TIM_Base_Start(&htim);
+}
+
+/**
+  * @brief  DAC Channel1 Triangle Configuration
+  * @param  None
+  * @retval None
+  */
+static void DAC_Ch1_TriangleConfig(void)
+{
+  /*##-1- Initialize the DAC peripheral ######################################*/
+  if (HAL_DAC_Init(&DacHandle) != HAL_OK)
+  {
+    /* DAC initialization Error */
+    // Error_Handler();
+	BSP_LED_On(LED3);
+  }
+
+  /*##-2- DAC channel1 Configuration #########################################*/
+  sConfig.DAC_Trigger = DAC_TRIGGER_T6_TRGO;
+  sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
+
+  if (HAL_DAC_ConfigChannel(&DacHandle, &sConfig, DACx_CHANNEL) != HAL_OK)
+  {
+    /* Channel configuration Error */
+    // Error_Handler();
+	BSP_LED_On(LED3);
+  }
+
+  /*##-3- DAC channel1 Triangle Wave generation configuration ################*/
+  if (HAL_DACEx_TriangleWaveGenerate(&DacHandle, DACx_CHANNEL, DAC_TRIANGLEAMPLITUDE_1023) != HAL_OK)
+  {
+    /* Triangle wave generation Error */
+	BSP_LED_On(LED3);
+  }
+
+  /*##-4- Enable DAC Channel1 ################################################*/
+  if (HAL_DAC_Start(&DacHandle, DACx_CHANNEL) != HAL_OK)
+  {
+    /* Start Error */
+    // Error_Handler();
+	BSP_LED_On(LED3);
+  }
+
+  /*##-5- Set DAC channel1 DHR12RD register ################################################*/
+  if (HAL_DAC_SetValue(&DacHandle, DACx_CHANNEL, DAC_ALIGN_12B_R, 0x100) != HAL_OK)
+  {
+    /* Setting value Error */
+    // Error_Handler();
+	BSP_LED_On(LED3);
+  }
+  BSP_LED_On(LED1);
 }
 
 /**
@@ -142,12 +246,31 @@ void AudioPlay_demo (void)
   AudioFreq_ptr = AudioFreq+0; /*AF_8K = 0, AF_48k = 6*/
   uint8_t FreqStr[256] = {0};
   Point Points2[] = {{100, 140}, {160, 180}, {100, 220}};
+  BSP_LED_Off(LED1);
+  BSP_LED_Off(LED2);
+  BSP_LED_Off(LED3);
+  BSP_LED_Off(LED4);
+
+  // DAC SETUP NEW
+  HAL_DAC_MspInit(&DacHandle);
+  HAL_TIM_Base_MspInit(&htim);
+
+  /*##-1- Configure the DAC peripheral #######################################*/
+  DacHandle.Instance = DACx;
+
+  /*##-2- Configure the TIM peripheral #######################################*/
+  TIM6_Config();
+
+  /* Triangle Wave generator -------------------------------------------*/
+  DAC_Ch1_TriangleConfig();
+
+  // END
 
   // The DSP
   faust_dsp dsp_instance( new DSP_CLASS, 8000 );
   dsp = &dsp_instance;
 
-  const std::unordered_map<float*, faust_control> &controls = dsp->get_controls( );
+  // const std::unordered_map<float*, faust_control> &controls = dsp->get_controls( );
   // PRIYANKA Modify for slider input basically
   /*
   for ( const auto &[ptr, ctl] : controls )
@@ -336,7 +459,7 @@ void AudioPlay_demo (void)
     BSP_LED_Toggle(LED4);
 
     /* Insert 100 ms delay */
-    // HAL_Delay(100);
+    HAL_Delay(100);
     if (CheckForUserInput() > 0)
     {
       /* Set LED4 */
