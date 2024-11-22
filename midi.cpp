@@ -1,4 +1,5 @@
 #include <midi.hpp>
+#include <algorithm>
 
 /**
 	Buffer for received MIDI commands
@@ -206,3 +207,4 @@ void polyphony_controller::reset( )
 		m_idle.push_back( id );
 	}
 }
+
